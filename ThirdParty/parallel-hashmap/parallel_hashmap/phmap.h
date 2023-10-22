@@ -2045,8 +2045,13 @@ private:
                 auto target = find_first_non_full(hashval);
                 size_t new_i = target.offset;
                 set_ctrl(new_i, H2(hashval));
+                // GCC decides that transfer() will deallocate the btree's
+                // constexpr empty_node.
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfree-nonheap-object"
                 PolicyTraits::transfer(&alloc_ref(), slots_ + new_i, old_slots + i);
             }
+#pragma GCC diagnostic pop
         }
         if (old_capacity) {
             SanitizerUnpoisonMemoryRegion(old_slots,
