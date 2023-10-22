@@ -138,27 +138,27 @@ TEST(BitMask, WithShift) {
   EXPECT_EQ(0x0000000080800000, mask);
 
   BitMask<uint64_t, 8, 3> b(mask);
-  EXPECT_EQ(*b, 2);
+  EXPECT_EQ(*b, 2u);
 }
 
 TEST(BitMask, LeadingTrailing) {
-  EXPECT_EQ((BitMask<uint32_t, 16>(0x00001a40).LeadingZeros()), 3);
-  EXPECT_EQ((BitMask<uint32_t, 16>(0x00001a40).TrailingZeros()), 6);
+  EXPECT_EQ((BitMask<uint32_t, 16>(0x00001a40).LeadingZeros()), 3u);
+  EXPECT_EQ((BitMask<uint32_t, 16>(0x00001a40).TrailingZeros()), 6u);
 
-  EXPECT_EQ((BitMask<uint32_t, 16>(0x00000001).LeadingZeros()), 15);
-  EXPECT_EQ((BitMask<uint32_t, 16>(0x00000001).TrailingZeros()), 0);
+  EXPECT_EQ((BitMask<uint32_t, 16>(0x00000001).LeadingZeros()), 15u);
+  EXPECT_EQ((BitMask<uint32_t, 16>(0x00000001).TrailingZeros()), 0u);
 
-  EXPECT_EQ((BitMask<uint32_t, 16>(0x00008000).LeadingZeros()), 0);
-  EXPECT_EQ((BitMask<uint32_t, 16>(0x00008000).TrailingZeros()), 15);
+  EXPECT_EQ((BitMask<uint32_t, 16>(0x00008000).LeadingZeros()), 0u);
+  EXPECT_EQ((BitMask<uint32_t, 16>(0x00008000).TrailingZeros()), 15u);
 
-  EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x0000008080808000).LeadingZeros()), 3);
-  EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x0000008080808000).TrailingZeros()), 1);
+  EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x0000008080808000).LeadingZeros()), 3u);
+  EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x0000008080808000).TrailingZeros()), 1u);
 
-  EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x0000000000000080).LeadingZeros()), 7);
-  EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x0000000000000080).TrailingZeros()), 0);
+  EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x0000000000000080).LeadingZeros()), 7u);
+  EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x0000000000000080).TrailingZeros()), 0u);
 
-  EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x8000000000000000).LeadingZeros()), 0);
-  EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x8000000000000000).TrailingZeros()), 7);
+  EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x8000000000000000).LeadingZeros()), 0u);
+  EXPECT_EQ((BitMask<uint64_t, 8, 3>(0x8000000000000000).TrailingZeros()), 7u);
 }
 
 TEST(Group, EmptyGroup) {
@@ -259,6 +259,7 @@ struct IntPolicy {
   using slot_type = int64_t;
   using key_type = int64_t;
   using init_type = int64_t;
+  using is_flat = std::false_type;
 
   static void construct(void*, int64_t* slot, int64_t v) { *slot = v; }
   static void destroy(void*, int64_t*) {}
@@ -301,6 +302,7 @@ class StringPolicy {
 
   using key_type = std::string;
   using init_type = std::pair<std::string, std::string>;
+  using is_flat = std::false_type;
 
   template <class allocator_type, class... Args>
   static void construct(allocator_type* alloc, slot_type* slot, Args... args) {
@@ -389,40 +391,6 @@ struct BadTable : raw_hash_set<IntPolicy, BadFastHash, std::equal_to<int>,
   using Base::Base;
 };
 
-#if PHMAP_HAVE_STD_STRING_VIEW
-TEST(Table, EmptyFunctorOptimization) {
-  static_assert(std::is_empty<std::equal_to<std::string_view>>::value, "");
-  static_assert(std::is_empty<std::allocator<int>>::value, "");
-
-  struct MockTable {
-    void* ctrl;
-    void* slots;
-    size_t size;
-    size_t capacity;
-    size_t growth_left;
-    void* infoz;
-  };
-  struct StatelessHash {
-    size_t operator()(std::string_view) const { return 0; }
-  };
-  struct StatefulHash : StatelessHash {
-    size_t dummy;
-  };
-
-  EXPECT_EQ(
-      sizeof(MockTable),
-      sizeof(
-          raw_hash_set<StringPolicy, StatelessHash,
-                       std::equal_to<std::string_view>, std::allocator<int>>));
-
-  EXPECT_EQ(
-      sizeof(MockTable) + sizeof(StatefulHash),
-      sizeof(
-          raw_hash_set<StringPolicy, StatefulHash,
-                       std::equal_to<std::string_view>, std::allocator<int>>));
-}
-#endif
-
 TEST(Table, Empty) {
   IntTable t;
   EXPECT_EQ(0, t.size());
@@ -445,7 +413,7 @@ TEST(Table, Prefetch) {
 
   // Do not run in debug mode, when prefetch is not implemented, or when
   // sanitizers are enabled.
-#if defined(NDEBUG) && defined(__GNUC__) && defined(__x86_64__) && \
+#if 0 && defined(NDEBUG) && defined(__GNUC__) && defined(__x86_64__) && \
     !defined(ADDRESS_SANITIZER) && !defined(MEMORY_SANITIZER) && \
     !defined(THREAD_SANITIZER) &&  !defined(UNDEFINED_BEHAVIOR_SANITIZER)&& \
     !defined(__EMSCRIPTEN__)
@@ -632,6 +600,7 @@ struct DecomposePolicy {
   using slot_type = DecomposeType;
   using key_type = DecomposeType;
   using init_type = DecomposeType;
+  using is_flat = std::false_type;
 
   template <typename T>
   static void construct(void*, DecomposeType* slot, T&& v) {

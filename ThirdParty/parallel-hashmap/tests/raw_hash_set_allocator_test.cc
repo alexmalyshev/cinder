@@ -67,7 +67,7 @@ class CheckedAlloc {
       std::integral_constant<bool, (Spec & kPropagateOnSwap) != 0>;
 
   CheckedAlloc select_on_container_copy_construction() const {
-    if (Spec & kPropagateOnCopy) return *this;
+    PHMAP_IF_CONSTEXPR (Spec & kPropagateOnCopy) return *this;
     return {};
   }
 
@@ -129,6 +129,7 @@ struct Policy {
   using slot_type = Tracked<int32_t>;
   using init_type = Tracked<int32_t>;
   using key_type = int32_t;
+  using is_flat = std::false_type;
 
   template <class allocator_type, class... Args>
   static void construct(allocator_type* alloc, slot_type* slot,
